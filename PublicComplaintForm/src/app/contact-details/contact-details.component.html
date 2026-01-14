@@ -1,0 +1,63 @@
+<div class="main-container">
+
+    <div class="title-container">
+        <h1 class="main-title">טופס פניות הציבור</h1>
+        <img class="main-logo" src="Check.svg" alt="לוגו טופס פניות הציבור"/>
+    </div>
+
+    <h2 class="sub-title">פרטי הפניה</h2>
+
+    <div class="form-container" [formGroup]="form">
+        <div class="form-instructions-container">
+
+        <div class="instruction" style="position: relative;">
+
+            <div class="instruction-text">
+                יש לכלול תיאור נושא ומהות הפניה יש לנסח באופן תמציתי וברור את מה שטוענים או מבקשים תוך ציון פרטים רלוונטים לצורך טיפול בפניה ומועדים שך האירועים בהם עוסקת הפניה
+            </div>
+        
+            <div class="description-icon-container">
+
+                <img src="description-icon.svg"/>
+
+            </div>
+
+        </div>
+        <div class="textarea">
+            <div class="dot-row">
+                    <label for="" class="form-field-name">פרטי הפניה</label>
+                    <h3 class="required-form-field" *ngIf="false">*</h3>
+                </div>
+            <textarea  rows="5"
+        cols='40\'></textarea>
+        </div>
+        <div class="form-row">
+             <mat-select (selectionChange)="onTitleSelectionChanged($event)" [(value)]="selectedOption">
+                <mat-option *ngFor="let title of titleOptions" [value]="title">{{title}}</mat-option>
+            </mat-select>
+
+             <mat-select (selectionChange)="OnCourtSelectionChanged($event)" [(value)]="selectedOption">
+                <mat-option *ngFor="let title of courtsList" [value]="title">{{title}}</mat-option>
+            </mat-select>
+        </div>
+        
+
+        
+
+    
+
+    </div>
+
+    </div>
+
+    <div class="button-container">
+
+        <div class="back-button-container">
+            <img src="back-arrow.svg"/>
+            <button class="prev-button" (click)="GoToPrevPage()">חזרה</button>
+        </div>
+        
+        <button class="next-button" (click)="GoToNextStep()">המשך</button>
+    </div>
+
+</div>
