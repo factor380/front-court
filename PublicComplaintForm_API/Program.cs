@@ -29,6 +29,17 @@ string logPath = Path.Combine(baseDir, "logs", "app.log");
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAngular",
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:4200") 
+                  .AllowAnyHeader()
+                  .AllowAnyMethod();
+        });
+});
+
 var serverIdentity = Environment.GetEnvironmentVariable("ServerIdentity")
                      ?? string.Empty;
 
@@ -66,6 +77,8 @@ builder.Services.AddAntiforgery(options =>
 });
 
 var app = builder.Build();
+
+app.UseCors("AllowAngular");
 
 if (app.Environment.IsDevelopment())
 {
@@ -166,7 +179,6 @@ app.MapPost("/survey", async([FromServices] IAntiforgery antiforgery,
 }).DisableAntiforgery();
 
 app.MapPost("/submit-form", async ([FromServices] IAntiforgery antiforgery,
-                                    [FromForm] JsonElement formData,
                                     [FromForm] IFormFileCollection files,
                                     [FromServices] ILog log,
                                     [FromServices] DatabaseService db,
@@ -174,87 +186,88 @@ app.MapPost("/submit-form", async ([FromServices] IAntiforgery antiforgery,
                                     IMemoryCache cache,
                                     HttpContext context) =>
 {
-    SanitizingService sanitizingService = new SanitizingService();
-    sanitizingService.SanitizeClass(formData);
 
-    //await logger.LogAsync($"Received {files.Count} files");
-    log.Info($"Received {files.Count} files");
 
-    foreach(var file in files)
+var form = await context.Request.ReadFormAsync();
+    
+    var dict = form.ToDictionary(x => x.Key, x => x.Value.ToString());
+    string jsonString = JsonSerializer.Serialize(dict);
+    
+    using var doc = JsonDocument.Parse(jsonString);
+    JsonElement formDataElement = doc.RootElement.Clone();
+
+log.Info($"Received {files.Count} files");
+
+
+foreach(var file in files)
+{
+    var extension = Path.GetExtension(file.FileName);
+    if(string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
     {
-        var extension = Path.GetExtension(file.FileName);
+        return Results.Ok($"File '{file.FileName}' has an illegal file extension.");
+    }
+}
 
-        if(string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension))
+var inquiryId = Guid.NewGuid();
+
+/* --- 
+var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
+uploadsPath = Path.Combine(envConfig.SaveFileFolder, inquiryId.ToString());
+
+if (!Directory.Exists(uploadsPath))
+    Directory.CreateDirectory(uploadsPath);
+------------------------------------------------------------------ */
+
+var savedFiles = new List<string>();
+
+if (files is not null)
+{
+    log.Info("Files detected. File count is " + files.Count);
+
+    foreach (var file in files)
+    {
+        if (file.Length > 0)
         {
-            return Results.Ok($"File '{file.FileName}' has an illegal file extension.");
+            log.Info("File detected: " + file.FileName);
+            
+            /* ---
+            var filePath = Path.Combine(uploadsPath, file.FileName);
+            using var stream = new FileStream(filePath, FileMode.Create);
+            await file.CopyToAsync(stream);
+            ------------------------------------------------ */
+
+            savedFiles.Add(file.FileName);
+            log.Info("File processed (simulated save).");
         }
     }
+}
+else
+{
+    log.Info("No files detected");
+}
 
-    var inquiryId = Guid.NewGuid();
+JsonElement captchaSessionId;
+JsonElement captchaCode;
 
-    var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "Uploads");
-    uploadsPath = Path.Combine(envConfig.SaveFileFolder, inquiryId.ToString());
+if (!formDataElement.TryGetProperty("captchaSessionId", out captchaSessionId))
+    return Results.BadRequest("Invalid input.");
 
-    if (!Directory.Exists(uploadsPath))
-        Directory.CreateDirectory(uploadsPath);
+if (!formDataElement.TryGetProperty("captchaCode", out captchaCode))
+    return Results.BadRequest("Invalid input.");
 
-    var savedFiles = new List<string>();
+var isCaptchaValid = cs.ValidateCaptcha(captchaSessionId.GetString(), captchaCode.GetString(), cache);
 
-    if (files is not null)
-    {
-        log.Info("Files detected. File count is " + files.Count);
+if (!isCaptchaValid)
+    return Results.Ok("Invalid captcha.");
 
-        foreach (var file in files)
-        {
-            if (file.Length > 0)
-            {
-                log.Info("File being saved");
+var response = new
+{
+    Message = "Form submitted successfully!",
+    FormData = formDataElement, 
+    UploadedFiles = savedFiles
+};
 
-                var filePath = Path.Combine(uploadsPath, file.FileName);
-                using var stream = new FileStream(filePath, FileMode.Create);
-              
-                await file.CopyToAsync(stream);
-                savedFiles.Add(file.FileName);
-
-                log.Info("File was saved.");
-            }
-        }
-    }
-    else
-    {
-        log.Info("No files detected");
-    }
-
-    JsonElement captchaSessionId;
-    JsonElement captchaCode;
-
-    if (!formData.TryGetProperty("captchaSessionId", out captchaSessionId))
-        return Results.BadRequest("Invalid input.");
-
-    if (!formData.TryGetProperty("captchaCode", out captchaCode))
-        return Results.BadRequest("Invalid input.");
-
-    if (captchaSessionId.ValueKind != JsonValueKind.String)
-        return Results.BadRequest("Must be a string.");
-
-    if (captchaCode.ValueKind != JsonValueKind.String)
-        return Results.BadRequest("Must be a string.");
-
-    var isCaptchaValid = cs.ValidateCaptcha(captchaSessionId.GetString(), captchaCode.GetString(), cache);
-
-    if (!isCaptchaValid)
-        return Results.Ok("Invalid captcha.");
-
-    // פה יש צורך לבצע שמירה של הנתונים בצורה כזאת או אחרת.
-
-    var response = new
-    {
-        Message = "Form submitted successfully!",
-        FormData = formData,
-        UploadedFiles = savedFiles
-    };
-
-    return Results.Json(response);
+return Results.Json(response);
 }).DisableAntiforgery();
 
 app.MapGet("/log", async (HttpContext context, [FromServices] IConfiguration config) =>
@@ -350,6 +363,25 @@ app.MapPost("/send-email", async (EmailRequest request) =>
     catch (Exception ex)
     {
         return Results.Problem("Failed to send email: " + ex.Message);
+    }
+});
+
+app.MapGet("/api/reports/monthly-complaints", async (DatabaseService dbService) =>
+{
+    try 
+    {
+        var reportData = await dbService.GetMonthlyReport(useDummyData: true); 
+        
+        if (reportData == null || !reportData.Any())
+        {
+            return Results.NotFound(new { message = "No data found for the report." });
+        }
+
+        return Results.Ok(reportData);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem("An error occurred while generating the report: " + ex.Message);
     }
 });
 

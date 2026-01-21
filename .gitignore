@@ -43,3 +43,5 @@ testem.log
 Thumbs.db
 
 *.vsidx
+
+**/bin/Debug/net8.0/
