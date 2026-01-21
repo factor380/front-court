@@ -39,17 +39,18 @@ export class ContactDetailsComponent implements OnInit
 		'בית משפט ט',
 	]
 
-	form: any;
+	form: FormGroup = new FormGroup({});
+	formError = { showError: false, errorTitle: "שגיאה",
+		 errorMessage: "קיימת שגיאה במילוי הטופס, אנא מלא פרטים תקינים." };
 	currentPage = "step3";
 
 	async ngOnInit() 
 	{
 		this.form = this.formBuilder.group({
-			contactDescription: ['', Validators.required],
-			courtCaseNumber: [''],
+			contactDescription: ['', [Validators.required, Validators.maxLength(7000)]],
+			courtCaseNumber: ['', Validators.pattern('[0-9]+')],
 			courthouse: ['']
 		});
-		//this.form = this.formHandlerService.getStepValues('3');
 
 		(await this.courtHandlerService.getCourtsList()).subscribe({
 			next: (data: any) => {
@@ -65,21 +66,22 @@ export class ContactDetailsComponent implements OnInit
 			}
 		})
 
-		this.updateFormGroup();
+		this.loadFormValues();
 
 		const textArea = document.getElementById('contact-description-textarea') as HTMLTextAreaElement;
-		const currentValue = textArea.value;
+		if(textArea) {
+			const currentValue = textArea.value;
 
-		const lengthRemaining = 7000 - currentValue.length;
+			const lengthRemaining = 7000 - currentValue.length;
 
-		this.textAreaRemainingCharacters = `${lengthRemaining} תווים נותרו`;
+			this.textAreaRemainingCharacters = `${lengthRemaining} תווים נותרו`;
 
-		if(lengthRemaining < 0)
-		{
-			textArea.value = currentValue.substring(0, 7000);
-			this.textAreaRemainingCharacters = `0 תווים נותרו`;
-			this.textAreaRemainingCharacters = `0 תווים נותרו`;
-			console.log("Zero tavim.");
+			if(lengthRemaining < 0)
+			{
+				textArea.value = currentValue.substring(0, 7000);
+				this.textAreaRemainingCharacters = `0 תווים נותרו`;
+				console.log("Zero tavim.");
+			}
 		}
 
 		
@@ -103,13 +105,13 @@ export class ContactDetailsComponent implements OnInit
 
 	GoToNextStep()
 	{
-		console.log(this.form.get('courthouse').value);
+		console.log(this.form.get('courthouse')?.value);
 		this.formHandlerService.updateStepFields('3', this.form);
-		//this.form = this.formHandlerService.getStepValues('3');
 
 		if(!this.form.valid)
 		{
-			console.log(this.form.errors);
+			this.formError = { showError: false, errorTitle: "שגיאה", errorMessage: "קיימת שגיאה במילוי הטופס, אנא מלא פרטים תקינים." };
+			this.formError.showError = true;	
 
 			Object.keys(this.form.controls).forEach(field => {
 				const control = this.form.get(field);
@@ -118,6 +120,8 @@ export class ContactDetailsComponent implements OnInit
 
 			return;
 		}
+
+		this.form = this.formHandlerService.getStepValues('3');
 
 		this.router.navigate(['/step4']);
 	}
@@ -129,6 +133,25 @@ export class ContactDetailsComponent implements OnInit
 	}
 
 	updateFormGroup(): void 
+	{
+		var stepForm = this.formHandlerService.getStepValues('3');
+
+		Object.keys(stepForm.controls).forEach((controlName) => {
+
+			if(controlName === "courthouse")
+			{
+				this.selectedCourt = stepForm.get(controlName)?.value;
+				this.form.patchValue({
+					courthouse: this.selectedCourt
+				});
+			}
+
+			else if(this.form.contains(controlName))
+				this.form?.get(controlName)?.setValue(stepForm.get(controlName)?.value);
+		});
+	}
+
+	loadFormValues(): void 
 	{
 		var stepForm = this.formHandlerService.getStepValues('3');
 

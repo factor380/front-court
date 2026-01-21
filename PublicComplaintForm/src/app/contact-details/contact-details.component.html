@@ -2,62 +2,101 @@
 
     <div class="title-container">
         <h1 class="main-title">טופס פניות הציבור</h1>
-        <img class="main-logo" src="Check.svg" alt="לוגו טופס פניות הציבור"/>
+        <img class="main-logo" src="Check.svg" alt="לוגו טופס פניות הציבור" />
     </div>
 
-    <h2 class="sub-title">פרטי הפניה</h2>
+    <h2 class="sub-title">מהות הפניה</h2>
 
     <div class="form-container" [formGroup]="form">
-        <div class="form-instructions-container">
 
-        <div class="instruction" style="position: relative;">
+        <div class="instruction">
+                <div class="instruction-text">
+                    יש לכלול תיאור נושא ומהות הפניה יש לנסח באופן תמציתי וברור את מה שטוענים או מבקשים תוך ציון פרטים
+                    רלוונטים לצורך טיפול בפניה ומועדים שך האירועים בהם עוסקת הפניה
+                </div>
 
-            <div class="instruction-text">
-                יש לכלול תיאור נושא ומהות הפניה יש לנסח באופן תמציתי וברור את מה שטוענים או מבקשים תוך ציון פרטים רלוונטים לצורך טיפול בפניה ומועדים שך האירועים בהם עוסקת הפניה
-            </div>
-        
-            <div class="description-icon-container">
+                <div class="description-icon-container">
 
-                <img src="description-icon.svg"/>
+                    <img src="description-icon.svg" />
 
-            </div>
-
+                </div>
         </div>
         <div class="textarea">
             <div class="dot-row">
-                    <label for="" class="form-field-name">פרטי הפניה</label>
-                    <h3 class="required-form-field" *ngIf="false">*</h3>
-                </div>
-            <textarea  rows="5"
-        cols='40\'></textarea>
+                <label for="contact-description-textarea" class="form-field-name">פרטי הפניה</label>
+            </div>
+            <textarea 
+                id="contact-description-textarea"
+                formControlName="contactDescription"
+                rows="5" 
+                cols='40'
+                (input)="OnTextAreaChanged($event)"
+                [ngClass]="{'error-field': form.controls['contactDescription'].errors && form.controls['contactDescription'].touched}"></textarea>
+            
+            <div class="char-counter">{{ textAreaRemainingCharacters }}</div>
+            
+            <div *ngIf="form.controls['contactDescription'].errors?.['required'] && form.controls['contactDescription'].touched" class="validation-mark">
+                <img src="validation-mark.svg"/>
+                <p class="validation-text">שדה חובה</p>
+            </div>
+            <div *ngIf="form.controls['contactDescription'].errors?.['maxlength'] && form.controls['contactDescription'].touched" class="validation-mark">
+                <img src="validation-mark.svg"/>
+                <p class="validation-text">חרגת מ-7000 תווים</p>
+            </div>
         </div>
         <div class="form-row">
-             <mat-select (selectionChange)="onTitleSelectionChanged($event)" [(value)]="selectedOption">
-                <mat-option *ngFor="let title of titleOptions" [value]="title">{{title}}</mat-option>
-            </mat-select>
 
-             <mat-select (selectionChange)="OnCourtSelectionChanged($event)" [(value)]="selectedOption">
-                <mat-option *ngFor="let title of courtsList" [value]="title">{{title}}</mat-option>
-            </mat-select>
+            <div class="form-field-container size-limit-for-matselect-container">
+
+                <div class="dot-row">
+                    <label for="" class="form-field-name">מספר תיק בית המשפט</label>
+                </div>
+
+                <input id="courtCaseNumber" formControlName="courtCaseNumber" value="" 
+                [ngClass]="{'error-field': form.controls['courtCaseNumber'].errors && form.controls['courtCaseNumber'].touched}"/>
+
+                <div *ngIf="form.controls['courtCaseNumber'].errors?.['required'] && form.controls['courtCaseNumber'].touched" class="validation-mark">
+                    <img src="validation-mark.svg"/>
+                    <p class="validation-text">שדה חובה</p>
+                </div>
+            </div>
+
+            <div class="form-field-container size-limit-for-matselect-container">
+
+                <div class="dot-row">
+                    <label for="" class="form-field-name">בית משפט</label>
+                </div>
+
+                <mat-select 
+                    formControlName="courthouse"
+                    (selectionChange)="OnCourtSelectionChanged($event)"
+                    [ngClass]="{'error-field': form.controls['courthouse'].errors && form.controls['courthouse'].touched}">
+                    <mat-option *ngFor="let title of courtsList" [value]="title">{{title}}</mat-option>
+                </mat-select>
+
+                <div *ngIf="form.controls['courthouse'].errors?.['required'] && form.controls['courthouse'].touched" class="validation-mark">
+                    <img src="validation-mark.svg"/>
+                    <p class="validation-text">שדה חובה</p>
+                </div>
+            </div>
+
         </div>
-        
 
-        
-
-    
-
-    </div>
+        <div class="form-row center-text">
+                    <p class="error-message" *ngIf="formError.showError">שגיאה: {{formError.errorMessage}}</p>
+                </div>
 
     </div>
 
     <div class="button-container">
 
         <div class="back-button-container">
-            <img src="back-arrow.svg"/>
+            <img src="back-arrow.svg" />
             <button class="prev-button" (click)="GoToPrevPage()">חזרה</button>
         </div>
-        
+
         <button class="next-button" (click)="GoToNextStep()">המשך</button>
     </div>
+
 
 </div>
